@@ -7,28 +7,14 @@
 //! On-disk mutations synchronize at the narrowest safe scope: lifecycle per
 //! conversation root, shared metadata per root, and messages per thread.
 //!
-//! This file is the store as it came back from the memory engine (#5560),
-//! unchanged apart from the one constructor described below. The three
-//! dependency substitutions the round trip introduced — [`std::sync::LazyLock`]
-//! for the statics, the local [`hex_encode`] for per-thread filenames, and the
-//! hand-rolled temp-write in [`rewrite_jsonl`] — are all kept: they produce the
-//! bytes and the paths that every existing transcript already lives at, and a
-//! move must not rewrite those. See [`super`]'s module docs for the full
-//! accounting of what the trip cost.
+//! Dependency substitutions that keep this crate's `Cargo.toml` untouched:
+//! [`std::sync::LazyLock`] for the statics, the local [`hex_encode`] for
+//! per-thread filenames, and the hand-rolled temp-write in [`rewrite_jsonl`].
+//! They produce the bytes and paths every existing transcript already lives
+//! at, so they must not change.
 //!
-//! # The one thing that did change: `from_config`
-//!
-//! The engine's [`ConversationStore`] carried a second constructor,
-//! `from_config(&MemoryConfig)`, whose whole body was
-//! `Self::new(config.workspace.clone())`. It is gone rather than translated,
-//! and that is the point of the move: it was this module's *only* coupling to
-//! the rest of the engine, and re-expressing it here would either drag
-//! `MemoryConfig` back in or add a second name for a constructor that already
-//! exists. [`ConversationStore::new`] takes the workspace directory, every
-//! caller in this host already has one, and no caller ever used `from_config`
-//! — so nothing needed a translation and the derived on-disk root
-//! (`<workspace>/memory/conversations`, see `ConversationStore::root_dir` in
-//! `store_index.rs`) is byte-identical either way.
+//! The lock registry ([`locks`]) and deterministic-id idempotency were
+//! upstreamed from OpenHuman's host copy of this store.
 //!
 //! # File split
 //!
@@ -120,10 +106,8 @@ pub struct ConversationStore {
 impl ConversationStore {
     /// Construct a store rooted at the given workspace directory.
     ///
-    /// This is the only constructor. The conversation root is derived from
-    /// `workspace_dir` alone (`<workspace>/memory/conversations`, see
-    /// `root_dir` in `store_index.rs`), so the caller's workspace is the whole
-    /// input and there is nothing for a config type to add.
+    /// The conversation root is derived from `workspace_dir` alone
+    /// (`<workspace>/memory/conversations`, see `root_dir` in `store_index.rs`).
     pub fn new(workspace_dir: PathBuf) -> Self {
         let root = locks::normalized_root(&workspace_dir.join("memory").join("conversations"));
         let locks = locks::for_root(&root);
@@ -131,6 +115,12 @@ impl ConversationStore {
             root_dir: root,
             locks,
         }
+    }
+
+    /// Construct a store rooted at the engine's configured workspace
+    /// ([`MemoryConfig::workspace`](crate::memory::config::MemoryConfig)).
+    pub fn from_config(config: &crate::memory::config::MemoryConfig) -> Self {
+        Self::new(config.workspace.clone())
     }
 
     #[cfg(test)]
