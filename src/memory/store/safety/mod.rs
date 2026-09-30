@@ -10,7 +10,7 @@
 //! network IIN or a nearby card keyword, so 13-digit epoch-millisecond
 //! timestamps in stored JSON envelopes are not corrupted (opencompany#1201).
 //!
-//! The write-rejection boundary ([`pii::has_likely_pii`]) stays stricter than
+//! The write-rejection boundary ([`has_likely_pii`](tinymemory_safety::has_likely_pii)) stays stricter than
 //! content scrubbing: formatted national IDs are rejected, while phone/email-like
 //! text is scrubbed from content without rejecting every write that mentions
 //! them.
