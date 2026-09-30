@@ -1705,6 +1705,7 @@ dependencies = [
  "tinycortex-api",
  "tinyinference-embeddings",
  "tinyinference-llm",
+ "tinymemory-safety",
  "tokio",
  "toml",
  "tracing",
@@ -1780,6 +1781,16 @@ dependencies = [
  "sha2 0.11.0",
  "thiserror",
  "uuid",
+]
+
+[[package]]
+name = "tinymemory-safety"
+version = "0.1.0"
+source = "git+https://github.com/tinyhumansai/tinymemory?rev=b49650e1eac6d55a41f641f4ec8a683a25df9518#b49650e1eac6d55a41f641f4ec8a683a25df9518"
+dependencies = [
+ "log",
+ "regex",
+ "serde_json",
 ]
 
 [[package]]

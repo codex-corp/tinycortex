@@ -103,6 +103,14 @@ people = ["tokio"]
 contacts = ["people", "dep:objc2", "dep:objc2-foundation", "dep:objc2-contacts", "dep:block2"]
 
 [dependencies]
+# The shared secret and PII scrubber (`memory::store::safety` is a thin wrapper
+# that pins this engine's policy). By git rev for the same reason
+# `tinymemory-api` is — neither crate is published — and a host that vendors
+# tinymemory patches it to its checkout:
+#
+#   [patch."https://github.com/tinyhumansai/tinymemory"]
+#   tinymemory-safety = { path = "crates/tinymemory-safety" }
+tinymemory-safety = { git = "https://github.com/tinyhumansai/tinymemory", rev = "b49650e1eac6d55a41f641f4ec8a683a25df9518" }
 anyhow = "1"
 log = "0.4"
 futures = "0.3"
