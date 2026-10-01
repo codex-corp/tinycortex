@@ -85,9 +85,21 @@ impl CallBudget {
     /// Reserve one call, returning `false` once the budget is spent. Lock-free
     /// and correct under the concurrent `buffered` digest stream.
     fn try_acquire(&self) -> bool {
-        self.0
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
-            .is_ok()
+        // CAS loop rather than `fetch_update`/`try_update`: the former is
+        // deprecated on the newest stable, the latter is not in our MSRV.
+        let mut current = self.0.load(Ordering::SeqCst);
+        loop {
+            let Some(next) = current.checked_sub(1) else {
+                return false;
+            };
+            match self
+                .0
+                .compare_exchange_weak(current, next, Ordering::SeqCst, Ordering::SeqCst)
+            {
+                Ok(_) => return true,
+                Err(actual) => current = actual,
+            }
+        }
     }
 
     /// Calls still available in this run.
