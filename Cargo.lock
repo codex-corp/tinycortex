@@ -1675,8 +1675,7 @@ dependencies = [
 
 [[package]]
 name = "tinyinference-core"
-version = "0.2.1"
-source = "git+https://github.com/tinyhumansai/tinyinference?rev=bb0f820#bb0f820a246874dff7fff2569d8679303d354fb0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "httpdate",
@@ -1685,10 +1684,11 @@ dependencies = [
 
 [[package]]
 name = "tinyinference-embeddings"
-version = "0.2.1"
-source = "git+https://github.com/tinyhumansai/tinyinference?rev=bb0f820#bb0f820a246874dff7fff2569d8679303d354fb0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
+ "once_cell",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",
@@ -1701,8 +1701,7 @@ dependencies = [
 
 [[package]]
 name = "tinyinference-llm"
-version = "0.2.1"
-source = "git+https://github.com/tinyhumansai/tinyinference?rev=bb0f820#bb0f820a246874dff7fff2569d8679303d354fb0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1711,23 +1710,35 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
+ "tempfile",
  "thiserror",
  "tinyinference-core",
+ "tinytools-agent",
  "tokio",
  "tracing",
- "url",
 ]
 
 [[package]]
 name = "tinymemory-api"
 version = "0.1.1"
-source = "git+https://github.com/tinyhumansai/tinymemory?rev=4549cda222de3891b95e2fa58e2565bb2c194328#4549cda222de3891b95e2fa58e2565bb2c194328"
 dependencies = [
  "anyhow",
  "async-trait",
- "chrono",
  "log",
  "schemars",
+ "serde",
+ "serde_json",
+ "tinymemory-bus",
+ "tokio",
+ "toml",
+]
+
+[[package]]
+name = "tinymemory-bus"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -1753,6 +1764,28 @@ checksum = "c8323304221c2a851516f22236c5722a72eaa19749016521d6dff0824447d96d"
 dependencies = [
  "displaydoc",
  "zerovec",
+]
+
+[[package]]
+name = "tinytools"
+version = "0.3.0"
+source = "git+https://github.com/tinyhumansai/tinytools?rev=a5d04a7f3af0abc1dd748f87f94871b36ae9fe71#a5d04a7f3af0abc1dd748f87f94871b36ae9fe71"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "tinytools-agent"
+version = "0.3.0"
+source = "git+https://github.com/tinyhumansai/tinytools?rev=a5d04a7f3af0abc1dd748f87f94871b36ae9fe71#a5d04a7f3af0abc1dd748f87f94871b36ae9fe71"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+ "tinytools",
 ]
 
 [[package]]
