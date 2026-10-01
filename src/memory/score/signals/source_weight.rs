@@ -90,6 +90,11 @@ fn weight_for_explicit(ds: DataSource) -> Option<f32> {
         DataSource::Notion => 0.75,
         DataSource::DriveDocs => 0.6,
         DataSource::MeetingNotes => 0.85,
+        // Uploads are files the user deliberately handed over (matches the
+        // Document kind default); fetched web pages are third-party,
+        // unscoped content, so they sit with mixed-provenance Drive docs.
+        DataSource::Upload => 0.7,
+        DataSource::WebPage => 0.6,
         // Unreachable today — see the doc comment above. `None` routes the
         // caller to `kind_default` and trips the guard test.
         _ => return None,
