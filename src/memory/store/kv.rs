@@ -5,7 +5,7 @@
 //! from OpenHuman's `memory_store::kv` (lifted off the `UnifiedMemory`
 //! connection into a standalone [`KvStore`] with its own connection).
 //!
-//! Writes run through the [`safety`](crate::memory::store::safety) guard:
+//! Writes run through the [`safety`](super::safety) guard:
 //! secret-like or PII-like keys/namespaces are rejected outright, and values
 //! are sanitized before they land in the store.
 
