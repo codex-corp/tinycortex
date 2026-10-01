@@ -80,11 +80,10 @@ persona = []
 # `dep:reqwest` independently.
 wiki-git = ["dep:git2", "dep:hex"]
 
-# Obsidian vault interop (`memory::store::content::{obsidian,obsidian_registry}`):
-# stages the bundled `.obsidian/` defaults into the content root, and
-# best-effort detection of whether that root is a vault Obsidian already knows
-# about (its `obsidian.json` registry).
-obsidian = ["dep:dirs"]
+# Obsidian vault interop (`memory::store::content::obsidian`): stages the
+# bundled `.obsidian/` defaults into the content root. Vault-registration
+# detection is host desktop policy and lives in the host, not here.
+obsidian = []
 
 # Contact resolution and scoring (`memory::people`): a SQLite store of people,
 # handle aliases and interactions, a deterministic handle → `PersonId` resolver,
@@ -156,8 +155,6 @@ reqwest = { version = "0.12", default-features = false, features = [
     "stream",
 ], optional = true }
 tracing = { version = "0.1", optional = true }
-# Per-OS config/home dir probing for the Obsidian vault registry (`obsidian`).
-dirs = { version = "7", optional = true }
 # Hex-encodes summary read-pointer ids into git tag names (`wiki-git`).
 hex = { version = "0.4", optional = true }
 # tokio powers the optional background worker loops (`tokio` feature). It is
