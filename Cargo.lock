@@ -1676,6 +1676,7 @@ dependencies = [
 [[package]]
 name = "tinyinference-core"
 version = "0.3.0"
+source = "git+https://github.com/tinyhumansai/tinyinference?rev=92445ea582c9b1c5dc78891ebbff4a817f9e8fa9#92445ea582c9b1c5dc78891ebbff4a817f9e8fa9"
 dependencies = [
  "anyhow",
  "httpdate",
@@ -1685,6 +1686,7 @@ dependencies = [
 [[package]]
 name = "tinyinference-embeddings"
 version = "0.3.0"
+source = "git+https://github.com/tinyhumansai/tinyinference?rev=92445ea582c9b1c5dc78891ebbff4a817f9e8fa9#92445ea582c9b1c5dc78891ebbff4a817f9e8fa9"
 dependencies = [
  "async-trait",
  "once_cell",
@@ -1702,6 +1704,7 @@ dependencies = [
 [[package]]
 name = "tinyinference-llm"
 version = "0.3.0"
+source = "git+https://github.com/tinyhumansai/tinyinference?rev=92445ea582c9b1c5dc78891ebbff4a817f9e8fa9#92445ea582c9b1c5dc78891ebbff4a817f9e8fa9"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1710,7 +1713,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
- "tempfile",
  "thiserror",
  "tinyinference-core",
  "tinytools-agent",
@@ -1721,6 +1723,7 @@ dependencies = [
 [[package]]
 name = "tinymemory-api"
 version = "0.1.1"
+source = "git+https://github.com/tinyhumansai/tinymemory?rev=1a03a00c11f68beea63a743bb369d947f98fcde1#1a03a00c11f68beea63a743bb369d947f98fcde1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1729,13 +1732,12 @@ dependencies = [
  "serde",
  "serde_json",
  "tinymemory-bus",
- "tokio",
- "toml",
 ]
 
 [[package]]
 name = "tinymemory-bus"
 version = "0.1.0"
+source = "git+https://github.com/tinyhumansai/tinymemory?rev=1a03a00c11f68beea63a743bb369d947f98fcde1#1a03a00c11f68beea63a743bb369d947f98fcde1"
 dependencies = [
  "anyhow",
  "chrono",
