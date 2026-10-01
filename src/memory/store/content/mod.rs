@@ -13,8 +13,8 @@
 //! - `read` — reads, SHA-256 verification, and front-matter splitting
 //! - `tags` — chunk-tag updates and Obsidian tag slugifiers
 //! - `raw` — verbatim per-item raw archive (`raw/<source>/<kind>/…`)
-//! - `obsidian` / `obsidian_registry` — Obsidian vault interop (`obsidian`
-//!   feature): stage bundled `.obsidian/` defaults, detect vault registration
+//! - `obsidian` — Obsidian vault interop (`obsidian` feature): stage bundled
+//!   `.obsidian/` defaults
 //! - `wiki_git` — git-backed mirror of summary nodes (`wiki-git` feature)
 //!
 //! ## Deferred
@@ -26,8 +26,6 @@ pub mod atomic;
 pub mod compose;
 #[cfg(feature = "obsidian")]
 pub mod obsidian;
-#[cfg(feature = "obsidian")]
-pub mod obsidian_registry;
 pub mod paths;
 pub mod raw;
 pub mod read;
