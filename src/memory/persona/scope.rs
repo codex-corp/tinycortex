@@ -7,7 +7,9 @@ pub fn matches_project(scope: Option<&str>, project: &Path) -> bool {
         return false;
     };
     match (scope.canonicalize(), project.canonicalize()) {
-        (Ok(scope), Ok(project)) => scope.starts_with(project),
+        (Ok(scope), Ok(project)) => {
+            scope.is_dir() && project.is_dir() && scope.starts_with(project)
+        }
         _ => false,
     }
 }

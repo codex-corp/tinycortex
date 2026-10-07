@@ -68,3 +68,12 @@ fn codex_metadata_is_read_without_accepting_prompt_cwd() {
         Some("/project")
     );
 }
+
+#[test]
+fn a_file_is_not_a_working_directory_scope() {
+    let temp = tempdir().unwrap();
+    let file = temp.path().join("source.rs");
+    std::fs::write(&file, "fixture").unwrap();
+    assert!(!matches_project(file.to_str(), temp.path()));
+    assert!(!matches_project(temp.path().to_str(), &file));
+}
