@@ -39,3 +39,7 @@ pub use types::{
     evidence_id, DigestObservation, EvidenceSource, EvidenceTier, PersonaEvidence, PersonaFacet,
     PersonaSourceKind, SessionDigest,
 };
+
+pub mod scope;
+
+mod checkpoint;

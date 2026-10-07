@@ -76,6 +76,9 @@ pub struct PersonaConfig {
     /// Codex rollout root (`~/.codex/sessions`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex_root: Option<PathBuf>,
+    /// Restrict Codex transcript provenance to this existing project root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub codex_project_root: Option<PathBuf>,
     /// Roots walked for repo-scoped instruction files + git repos.
     #[serde(default)]
     pub project_roots: Vec<PathBuf>,
@@ -130,6 +133,7 @@ impl PersonaConfig {
             identity: identity.into(),
             claude_code_root: Some(home.join(".claude/projects")),
             codex_root: Some(home.join(".codex/sessions")),
+            codex_project_root: None,
             project_roots: vec![home.join("work")],
             global_instruction_files: vec![
                 home.join(".claude/CLAUDE.md"),

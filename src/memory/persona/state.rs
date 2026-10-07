@@ -15,6 +15,8 @@
 //! workspace so cursors survive across process runs; tests use an in-memory
 //! store. Evidence ids are content-addressed (§6.3), so overlapping cursors are
 //! harmless — this state is a *fast-skip* optimisation, not a correctness gate.
+//! Codex also stores content-addressed digest checkpoints in a separate
+//! namespace, so successful windows survive an interrupted session.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

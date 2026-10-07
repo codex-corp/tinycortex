@@ -53,12 +53,12 @@ const DIGEST_MAX_OUTPUT_TOKENS: u32 = 16_384;
 /// this size *are* re-digested but are not split again: one that still won't parse
 /// at this size is treated as genuinely broken (not merely output-capped) and
 /// dropped-with-a-count. This floor is what guarantees recovery terminates.
-const MIN_WINDOW_CHARS: usize = 1_500;
+pub(super) const MIN_WINDOW_CHARS: usize = 1_500;
 /// Max times recovery halves a truncated window before giving up on a sub-window.
 /// `12_000 → 6_000 → 3_000 → 1_500` reaches [`MIN_WINDOW_CHARS`], an ~8× cut in
 /// the per-call output that overran the cap — deep enough to recover real
 /// truncations, bounded so a deterministically-bad window can't loop.
-const MAX_RESPLIT_DEPTH: usize = 3;
+pub(super) const MAX_RESPLIT_DEPTH: usize = 3;
 
 /// A shared, concurrency-safe ceiling on provider calls for one run.
 ///
@@ -84,7 +84,7 @@ impl CallBudget {
 
     /// Reserve one call, returning `false` once the budget is spent. Lock-free
     /// and correct under the concurrent `buffered` digest stream.
-    fn try_acquire(&self) -> bool {
+    pub(super) fn try_acquire(&self) -> bool {
         self.0
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
             .is_ok()
@@ -147,7 +147,7 @@ fn user_prompt(session: &RawSession, window: &str) -> String {
 
 /// Split a session's evidence into windows of at most [`WINDOW_CHARS`] chars,
 /// each a newline-joined block of the evidence excerpts with their tiers.
-fn windows(session: &RawSession) -> Vec<String> {
+pub(super) fn windows(session: &RawSession) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur = String::new();
     for ev in &session.evidence {
@@ -249,7 +249,7 @@ pub async fn digest_session(
 
 /// Why a window could not be digested into observations.
 #[derive(Debug, thiserror::Error)]
-enum DigestError {
+pub(super) enum DigestError {
     /// The provider call itself failed (budget/auth/transport). The response was
     /// never received — transient, so the caller retries the whole session.
     #[error("digest provider call failed: {0:#}")]
@@ -333,7 +333,7 @@ async fn digest_window_recovering(
 /// Returns [`DigestError::Provider`] for a `chat_for_json` failure and
 /// [`DigestError::Unparseable`] for a truncated/unparseable response; a
 /// cleanly-parsed response with zero usable observations returns `Ok(vec![])`.
-async fn digest_window(
+pub(super) async fn digest_window(
     provider: &dyn ChatProvider,
     session: &RawSession,
     window: &str,
@@ -376,7 +376,7 @@ async fn digest_window(
 /// boundaries (UTF-8-safe). Used by truncation recovery to shrink a window whose
 /// digest overran the output-token cap. Char counts throughout (not byte lengths)
 /// so a multibyte-heavy window still halves to a genuinely smaller piece.
-fn split_window(text: &str, target: usize) -> Vec<String> {
+pub(super) fn split_window(text: &str, target: usize) -> Vec<String> {
     let target = target.max(1);
     let mut out = Vec::new();
     let mut cur = String::new();

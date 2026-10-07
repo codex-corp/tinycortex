@@ -68,6 +68,12 @@ pub struct RunReport {
     /// truncated/unparseable windows are recovered or counted in
     /// [`Self::windows_lost`], not here.
     pub sessions_failed: usize,
+    /// Newly persisted Codex digest pieces or recovery splits; resumable progress.
+    pub checkpoints_advanced: usize,
+    /// Safe, bounded per-session failure information.
+    pub failures: Vec<SessionFailure>,
+    /// Codex files excluded by configured project provenance.
+    pub sessions_excluded: usize,
     /// Recovery leaf sub-windows dropped because their digest stayed unparseable
     /// even after truncation-recovery re-splitting (one truncated 12k window can
     /// contribute several, so this counts sub-windows, not top-level windows). A
@@ -90,6 +96,42 @@ pub struct RunReport {
     pub systemic_digest_failure: bool,
     /// Path of the compiled pack, if written.
     pub pack_path: Option<String>,
+}
+
+/// Sanitised failure metadata; never contains transcript text or provider errors.
+#[derive(Debug, Clone, Serialize)]
+pub struct SessionFailure {
+    /// Stable machine-readable cause.
+    pub code: String,
+    /// Opaque content-derived correlation identifier.
+    pub session_id: String,
+    /// Safe remediation text.
+    pub summary: String,
+}
+
+fn failure(session: &RawSession, error: &anyhow::Error) -> SessionFailure {
+    use sha2::{Digest, Sha256};
+    let is_parse = error
+        .downcast_ref::<super::distill::DigestError>()
+        .is_some_and(|e| matches!(e, super::distill::DigestError::Unparseable(_)));
+    SessionFailure {
+        code: if is_parse {
+            "parse_failure"
+        } else {
+            "provider_failure"
+        }
+        .into(),
+        session_id: format!(
+            "{:x}",
+            Sha256::digest(session.source.source_id().as_bytes())
+        ),
+        summary: if is_parse {
+            "The digest response was invalid. Check the summarisation provider and retry."
+        } else {
+            "The summarisation call failed. Check provider access and retry."
+        }
+        .into(),
+    }
 }
 
 /// A run's session-count budget. The provider-call ceiling (`max_llm_calls`) is
@@ -236,7 +278,16 @@ impl Pipeline<'_> {
         // its session allowance exactly, which drops nothing and is not a hit.
 
         // 4. Seal facet trees + compile the pack.
-        let bodies = seal_and_collect(self.config, &asks, self.summariser).await?;
+        let bounded = super::checkpoint::BudgetedSummariser {
+            inner: self.summariser,
+            budget: guards.call_budget.clone(),
+        };
+        let summariser = if self.persona.codex_project_root.is_some() {
+            &bounded as &dyn Summariser
+        } else {
+            self.summariser
+        };
+        let bodies = seal_and_collect(self.config, &asks, summariser).await?;
         let pack_path = self.compile_and_write(bodies, &state)?;
         report.pack_path = Some(pack_path.display().to_string());
         for (facet, n) in &state.counts {
@@ -325,151 +376,6 @@ impl Pipeline<'_> {
         }
         Ok(())
     }
-
-    async fn ingest_transcripts(
-        &self,
-        mode: RunMode,
-        asks: &FacetAsks,
-        state: &mut ReduceState,
-        budget: &mut Budget,
-        guards: &mut DigestGuards,
-        report: &mut RunReport,
-    ) -> Result<()> {
-        let mut files: Vec<(PathBuf, &'static str)> = Vec::new();
-        if let Some(root) = &self.persona.claude_code_root {
-            for p in claude_code::discover(root) {
-                files.push((p, "claude_code"));
-            }
-        }
-        if let Some(root) = &self.persona.codex_root {
-            for p in codex::discover(root) {
-                files.push((p, "codex"));
-            }
-        }
-        // Oldest-first for chronological folding.
-        files.sort_by_key(|(p, _)| file_mtime_ms(p));
-
-        // Read (cheap I/O, serial) into a pending list, then digest concurrently
-        // + fold serially below. Cursors are committed only AFTER a session is
-        // digested, so a budget-truncated file is re-processed on resume.
-        let mut pending: Vec<Pending> = Vec::new();
-        for (path, kind) in files {
-            report.files_seen += 1;
-            let key = file_key(kind, &path);
-            if mode == RunMode::Incremental && file_unchanged(self.store, &key, &path).await? {
-                report.sessions_skipped += 1;
-                continue;
-            }
-            let session: RawSession = match read_transcript(kind, &path) {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
-            if session.is_empty() {
-                // Nothing to digest — record the cursor now so we don't re-read.
-                record_file(self.store, &key, &path).await?;
-                continue;
-            }
-            report.evidence_units += session.evidence.len();
-            let commit = state::FileCursor::of(&path)
-                .and_then(|c| serde_json::to_value(c).ok())
-                .map(|v| (key, v));
-            pending.push(Pending { session, commit });
-        }
-        self.digest_and_fold(pending, asks, state, budget, guards, report)
-            .await
-    }
-
-    /// Digest the `pending` sessions concurrently (the network-bound map step)
-    /// and fold the results serially into the facet trees (SQLite writes must
-    /// stay serial). Order is preserved (`buffered`, not `buffer_unordered`) so
-    /// trees fold oldest-first. Selection honours the shared run budget; a
-    /// selected session's cursor is committed after it is folded, except a
-    /// fully-lost session (zero observations, ≥1 window dropped) whose commit is
-    /// pushed to `deferred` for the run-level systemic check in [`Self::run`].
-    async fn digest_and_fold(
-        &self,
-        pending: Vec<Pending>,
-        asks: &FacetAsks,
-        state: &mut ReduceState,
-        budget: &mut Budget,
-        guards: &mut DigestGuards,
-        report: &mut RunReport,
-    ) -> Result<()> {
-        // Select within the session-count budget up front; the provider-call
-        // budget is enforced per call inside `digest_session`.
-        let mut selected: Vec<Pending> = Vec::new();
-        for p in pending {
-            if budget.exhausted() {
-                report.budget_hit = true;
-                break;
-            }
-            budget.charge();
-            selected.push(p);
-        }
-        if selected.is_empty() {
-            return Ok(());
-        }
-        let concurrency = self.persona.digest_concurrency.max(1);
-        let results: Vec<Result<SessionOutcome>> = stream::iter(selected.iter())
-            .map(|p| digest_session(self.provider, &p.session, &guards.call_budget))
-            .buffered(concurrency)
-            .collect()
-            .await;
-        for (p, result) in selected.iter().zip(results) {
-            let outcome = match result {
-                Ok(o) => o,
-                Err(e) => {
-                    // Non-committable, cursor NOT committed so the session is
-                    // re-attempted next run. Two shapes reach here, neither a
-                    // silent drop: the run's call budget was spent mid-session (a
-                    // clean checkpoint), or a hard provider failure
-                    // (transport/auth). Truncated/unparseable windows never reach
-                    // here — they are recovered or dropped-and-counted inside
-                    // `digest_session`.
-                    if is_budget_exhausted(&e) {
-                        report.budget_hit = true;
-                    } else {
-                        log::warn!(
-                            "[persona] digest provider failure, cursor not committed: {e:#}"
-                        );
-                        report.sessions_failed += 1;
-                    }
-                    continue;
-                }
-            };
-            report.sessions_processed += 1;
-            report.windows_lost += outcome.windows_lost;
-            let digest = outcome.digest;
-            let session_observations = digest.observations.len();
-            if !digest.is_empty() {
-                report.digests += 1;
-                report.observations += session_observations;
-                fold_digest(self.config, &digest, asks, self.summariser, state).await?;
-            }
-            let Some(commit) = &p.commit else { continue };
-            if session_observations == 0 && outcome.windows_lost > 0 {
-                // Yielded nothing but lost ≥1 window. In isolation this is a
-                // localized permanent-garbage window that should commit so the
-                // queue advances; run-wide it can instead be the symptom of a
-                // systemic provider failure. Defer the commit — `run` applies it
-                // only if the run produced observations somewhere, otherwise it
-                // withholds and flags rather than silently skipping the backlog.
-                guards.deferred.push(commit.clone());
-            } else if let Err(e) = self.store.set(state::NAMESPACE, &commit.0, &commit.1).await {
-                // Committed now that the session is folded: a recovered or
-                // genuinely-empty (zero-loss) session reproduces on re-run, so
-                // committing loses nothing. As on the deferred path, a failed
-                // write is logged and skipped rather than `?`-aborting the run and
-                // discarding the pack — the cursor is a fast-skip, so the session
-                // simply re-digests next run.
-                log::warn!(
-                    "[persona] cursor commit failed for {}; it will be re-digested next run: {e:#}",
-                    commit.0
-                );
-            }
-        }
-        Ok(())
-    }
 }
 
 /// A read-but-not-yet-digested session plus an optional state commit (cursor or
@@ -497,3 +403,6 @@ fn file_mtime_ms(path: &Path) -> i64 {
 #[cfg(test)]
 #[path = "pipeline_tests.rs"]
 mod tests;
+
+#[path = "pipeline_ingest.rs"]
+mod ingest;
